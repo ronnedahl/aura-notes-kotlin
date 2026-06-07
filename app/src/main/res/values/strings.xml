@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">AuraNotes</string>
+
+    <!-- Note list -->
+    <string name="add_note">Add note</string>
+    <string name="delete_note">Delete note</string>
+    <string name="empty_notes_title">No notes yet</string>
+    <string name="empty_notes_subtitle">Tap + to write your first note</string>
+
+    <!-- Add-note dialog -->
+    <string name="new_note">New note</string>
+    <string name="note_hint">Write something…</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
 </resources>
