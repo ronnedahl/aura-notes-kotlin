@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.peterbot.auranotes.R
+import dev.peterbot.auranotes.data.local.Category
 import dev.peterbot.auranotes.data.local.NoteEntity
 import dev.peterbot.auranotes.speech.SpeechState
 import dev.peterbot.auranotes.ui.theme.AuraNotesTheme
@@ -70,7 +71,9 @@ fun NoteScreen(
 ) {
     val context = LocalContext.current
     val notes by viewModel.notes.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
     val recordingState by viewModel.recordingState.collectAsState()
+    val recordingCategory by viewModel.recordingCategory.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -103,9 +106,13 @@ fun NoteScreen(
 
     NoteScreenContent(
         notes = notes,
+        selectedFilter = selectedFilter,
         recordingState = recordingState,
+        recordingCategory = recordingCategory,
         snackbarHostState = snackbarHostState,
+        onSelectFilter = viewModel::setFilter,
         onRecordClick = onRecordClick,
+        onSetRecordingCategory = viewModel::setRecordingCategory,
         onStopRecording = viewModel::stopRecording,
         onCancelRecording = viewModel::cancelRecording,
         onAddNote = viewModel::addNote,
@@ -118,12 +125,16 @@ fun NoteScreen(
 @Composable
 private fun NoteScreenContent(
     notes: List<NoteEntity>,
+    selectedFilter: Category?,
     recordingState: SpeechState,
+    recordingCategory: Category,
     snackbarHostState: SnackbarHostState,
+    onSelectFilter: (Category?) -> Unit,
     onRecordClick: () -> Unit,
+    onSetRecordingCategory: (Category) -> Unit,
     onStopRecording: () -> Unit,
     onCancelRecording: () -> Unit,
-    onAddNote: (String) -> Unit,
+    onAddNote: (String, Category) -> Unit,
     onDeleteNote: (NoteEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -154,22 +165,31 @@ private fun NoteScreenContent(
             }
         },
     ) { innerPadding ->
-        if (notes.isEmpty()) {
-            EmptyState(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            CategoryFilterRow(
+                selected = selectedFilter,
+                onSelect = onSelectFilter,
+                modifier = Modifier.padding(vertical = 8.dp),
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(items = notes, key = { it.id }) { note ->
-                    NoteCard(note = note, onDelete = { onDeleteNote(note) })
+
+            if (notes.isEmpty()) {
+                EmptyState(
+                    isFiltered = selectedFilter != null,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(items = notes, key = { it.id }) { note ->
+                        NoteCard(note = note, onDelete = { onDeleteNote(note) })
+                    }
                 }
             }
         }
@@ -178,8 +198,8 @@ private fun NoteScreenContent(
     if (showAddDialog) {
         AddNoteDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { text ->
-                onAddNote(text)
+            onConfirm = { text, category ->
+                onAddNote(text, category)
                 showAddDialog = false
             },
         )
@@ -188,6 +208,8 @@ private fun NoteScreenContent(
     if (recordingState !is SpeechState.Idle) {
         RecordingDialog(
             state = recordingState,
+            recordingCategory = recordingCategory,
+            onSetCategory = onSetRecordingCategory,
             onStop = onStopRecording,
             onCancel = onCancelRecording,
         )
@@ -220,11 +242,17 @@ private fun NoteCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = formatTimestamp(note.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CategoryBadge(category = note.category)
+                    Text(
+                        text = formatTimestamp(note.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
@@ -237,19 +265,26 @@ private fun NoteCard(
 }
 
 @Composable
-private fun EmptyState(modifier: Modifier = Modifier) {
+private fun EmptyState(
+    isFiltered: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val title = if (isFiltered) R.string.empty_filtered_title else R.string.empty_notes_title
+    val subtitle =
+        if (isFiltered) R.string.empty_filtered_subtitle else R.string.empty_notes_subtitle
+
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.empty_notes_title),
+            text = stringResource(title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = stringResource(R.string.empty_notes_subtitle),
+            text = stringResource(subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -261,24 +296,31 @@ private fun EmptyState(modifier: Modifier = Modifier) {
 @Composable
 private fun AddNoteDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (String, Category) -> Unit,
 ) {
     var text by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf(Category.NONE) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.new_note)) },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(stringResource(R.string.note_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text(stringResource(R.string.note_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CategorySelectorRow(
+                    selected = category,
+                    onSelect = { category = it },
+                )
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(text) },
+                onClick = { onConfirm(text, category) },
                 enabled = text.isNotBlank(),
             ) {
                 Text(stringResource(R.string.save))
@@ -293,13 +335,15 @@ private fun AddNoteDialog(
 }
 
 /**
- * Voice-recording overlay. Shows the live transcription while listening and a
- * Stop button to finish; an error state offers only a dismiss. The note itself
- * is saved by the ViewModel when the final result arrives.
+ * Voice-recording overlay. Shows the live transcription and a category selector
+ * while listening, and a Stop button to finish; an error state offers only a
+ * dismiss. The note itself is saved by the ViewModel when the result arrives.
  */
 @Composable
 private fun RecordingDialog(
     state: SpeechState,
+    recordingCategory: Category,
+    onSetCategory: (Category) -> Unit,
     onStop: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -315,12 +359,20 @@ private fun RecordingDialog(
             )
         },
         text = {
-            val body = when (state) {
-                is SpeechState.Listening -> state.partialText
-                is SpeechState.Result -> state.text
-                else -> stringResource(R.string.recording_hint)
+            if (!isError) {
+                val body = when (state) {
+                    is SpeechState.Listening -> state.partialText
+                    is SpeechState.Result -> state.text
+                    else -> stringResource(R.string.recording_hint)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(body)
+                    CategorySelectorRow(
+                        selected = recordingCategory,
+                        onSelect = onSetCategory,
+                    )
+                }
             }
-            if (!isError) Text(body)
         },
         confirmButton = {
             if (isError) {
@@ -354,15 +406,29 @@ private fun NoteScreenPreview() {
     AuraNotesTheme {
         NoteScreenContent(
             notes = listOf(
-                NoteEntity(id = 1, text = "Köp mjölk och bröd", createdAt = 1_717_000_000_000),
-                NoteEntity(id = 2, text = "Idé: rösta-först anteckningsapp", createdAt = 1_717_100_000_000),
+                NoteEntity(
+                    id = 1,
+                    text = "Köp mjölk och bröd",
+                    createdAt = 1_717_000_000_000,
+                    category = Category.SHOPPING,
+                ),
+                NoteEntity(
+                    id = 2,
+                    text = "Idé: rösta-först anteckningsapp",
+                    createdAt = 1_717_100_000_000,
+                    category = Category.IDEAS,
+                ),
             ),
+            selectedFilter = null,
             recordingState = SpeechState.Idle,
+            recordingCategory = Category.NONE,
             snackbarHostState = SnackbarHostState(),
+            onSelectFilter = {},
             onRecordClick = {},
+            onSetRecordingCategory = {},
             onStopRecording = {},
             onCancelRecording = {},
-            onAddNote = {},
+            onAddNote = { _, _ -> },
             onDeleteNote = {},
         )
     }
