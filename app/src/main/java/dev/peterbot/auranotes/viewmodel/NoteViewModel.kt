@@ -36,10 +36,28 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedFilter = MutableStateFlow<Category?>(null)
     val selectedFilter: StateFlow<Category?> = _selectedFilter.asStateFlow()
 
-    /** Notes after applying [selectedFilter]. */
+    /** Current search text; blank means no text filter. */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    /** When true, only favorite notes are shown. */
+    private val _showFavoritesOnly = MutableStateFlow(false)
+    val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
+
+    /** Notes after applying the category, search and favorites filters. */
     val notes: StateFlow<List<NoteEntity>> =
-        combine(repository.notes, _selectedFilter) { notes, filter ->
-            if (filter == null) notes else notes.filter { it.category == filter }
+        combine(
+            repository.notes,
+            _selectedFilter,
+            _searchQuery,
+            _showFavoritesOnly,
+        ) { notes, category, query, favoritesOnly ->
+            val trimmedQuery = query.trim()
+            notes.filter { note ->
+                (category == null || note.category == category) &&
+                    (!favoritesOnly || note.isFavorite) &&
+                    (trimmedQuery.isEmpty() || note.text.contains(trimmedQuery, ignoreCase = true))
+            }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -70,6 +88,14 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
         _selectedFilter.value = category
     }
 
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setShowFavoritesOnly(enabled: Boolean) {
+        _showFavoritesOnly.value = enabled
+    }
+
     fun addNote(text: String, category: Category) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
@@ -78,6 +104,10 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteNote(note: NoteEntity) {
         viewModelScope.launch { repository.deleteNote(note) }
+    }
+
+    fun toggleFavorite(note: NoteEntity) {
+        viewModelScope.launch { repository.setFavorite(note, !note.isFavorite) }
     }
 
     // --- Voice recording -----------------------------------------------------
