@@ -14,13 +14,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Schema history:
  *  - v1: id, text, createdAt
  *  - v2: + category (see [MIGRATION_1_2])
+ *  - v3: + isFavorite (see [MIGRATION_2_3])
  *
  * Real migrations preserve the user's notes across upgrades. The destructive
  * fallback is kept only as a last-resort backstop if no migration path exists.
  */
 @Database(
     entities = [NoteEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -40,6 +41,15 @@ abstract class NoteDatabase : RoomDatabase() {
             }
         }
 
+        /** Adds the favorite flag; existing notes start as not favorite (0). */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE notes ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: NoteDatabase? = null
 
@@ -54,7 +64,7 @@ abstract class NoteDatabase : RoomDatabase() {
                 NoteDatabase::class.java,
                 DATABASE_NAME,
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
     }

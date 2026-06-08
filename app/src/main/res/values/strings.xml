@@ -9,10 +9,18 @@
     <string name="empty_notes_title">No notes yet</string>
     <string name="empty_notes_subtitle">Tap the microphone to record your first note</string>
     <string name="empty_filtered_title">Nothing here</string>
-    <string name="empty_filtered_subtitle">No notes in this category yet</string>
+    <string name="empty_filtered_subtitle">No notes match your filters</string>
+
+    <!-- Search &amp; favorites -->
+    <string name="search">Search</string>
+    <string name="search_notes">Search notes</string>
+    <string name="close_search">Close search</string>
+    <string name="favorite">Mark as favorite</string>
+    <string name="unfavorite">Remove from favorites</string>
 
     <!-- Categories -->
     <string name="filter_all">All</string>
+    <string name="filter_favorites">Favorites</string>
     <string name="category_personal">Personal</string>
     <string name="category_work">Work</string>
     <string name="category_ideas">Ideas</string>

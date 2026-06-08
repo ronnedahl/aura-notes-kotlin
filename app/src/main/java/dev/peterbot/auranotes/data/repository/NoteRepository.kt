@@ -24,5 +24,8 @@ class NoteRepository(private val noteDao: NoteDao) {
 
     suspend fun updateNote(note: NoteEntity) = noteDao.update(note)
 
+    suspend fun setFavorite(note: NoteEntity, isFavorite: Boolean) =
+        noteDao.update(note.copy(isFavorite = isFavorite))
+
     suspend fun deleteNote(note: NoteEntity) = noteDao.delete(note)
 }

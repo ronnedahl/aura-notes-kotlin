@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.peterbot.auranotes.R
 import dev.peterbot.auranotes.data.local.Category
+import dev.peterbot.auranotes.viewmodel.NoteFilter
 import dev.peterbot.auranotes.ui.theme.BrandBlue
 import dev.peterbot.auranotes.ui.theme.BrandBlueDark
 import dev.peterbot.auranotes.ui.theme.BrandBlueLight
@@ -55,13 +59,14 @@ private fun onColorFor(background: Color): Color =
     if (background.luminance() > 0.5f) Color.Black else Color.White
 
 /**
- * Horizontal "All + categories" row used to filter the note list.
- * [selected] is null when "All" is active.
+ * Horizontal "All + Favorites + categories" row used to filter the note list.
+ * Single-select: exactly one [NoteFilter] is active, so "All" always returns
+ * every note.
  */
 @Composable
-fun CategoryFilterRow(
-    selected: Category?,
-    onSelect: (Category?) -> Unit,
+fun NoteFilterRow(
+    selected: NoteFilter,
+    onSelect: (NoteFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
@@ -71,16 +76,31 @@ fun CategoryFilterRow(
     ) {
         item {
             FilterChip(
-                selected = selected == null,
-                onClick = { onSelect(null) },
+                selected = selected is NoteFilter.All,
+                onClick = { onSelect(NoteFilter.All) },
                 label = { Text(stringResource(R.string.filter_all)) },
+            )
+        }
+        item {
+            FilterChip(
+                selected = selected is NoteFilter.Favorites,
+                onClick = { onSelect(NoteFilter.Favorites) },
+                label = { Text(stringResource(R.string.filter_favorites)) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Filled.Star, contentDescription = null)
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = BrandBlue,
+                    selectedLabelColor = onColorFor(BrandBlue),
+                    selectedLeadingIconColor = onColorFor(BrandBlue),
+                ),
             )
         }
         items(Category.entries) { category ->
             CategoryChip(
                 category = category,
-                selected = selected == category,
-                onClick = { onSelect(category) },
+                selected = selected is NoteFilter.ByCategory && selected.category == category,
+                onClick = { onSelect(NoteFilter.ByCategory(category)) },
             )
         }
     }

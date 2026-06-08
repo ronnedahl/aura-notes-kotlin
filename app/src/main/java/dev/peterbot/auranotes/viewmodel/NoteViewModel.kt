@@ -32,19 +32,33 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     private val speechManager = SpeechManager(application)
 
-    /** The category chip the user is filtering by; null means "All". */
-    private val _selectedFilter = MutableStateFlow<Category?>(null)
-    val selectedFilter: StateFlow<Category?> = _selectedFilter.asStateFlow()
+    /** Which notes to show; [NoteFilter.All] shows everything. */
+    private val _selectedFilter = MutableStateFlow<NoteFilter>(NoteFilter.All)
+    val selectedFilter: StateFlow<NoteFilter> = _selectedFilter.asStateFlow()
 
-    /** Notes after applying [selectedFilter]. */
+    /** Current search text; blank means no text filter. */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    /** Notes after applying the selected filter and the search query. */
     val notes: StateFlow<List<NoteEntity>> =
-        combine(repository.notes, _selectedFilter) { notes, filter ->
-            if (filter == null) notes else notes.filter { it.category == filter }
+        combine(repository.notes, _selectedFilter, _searchQuery) { notes, filter, query ->
+            val trimmedQuery = query.trim()
+            notes.filter { note ->
+                note.matches(filter) &&
+                    (trimmedQuery.isEmpty() || note.text.contains(trimmedQuery, ignoreCase = true))
+            }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
+
+    private fun NoteEntity.matches(filter: NoteFilter): Boolean = when (filter) {
+        NoteFilter.All -> true
+        NoteFilter.Favorites -> isFavorite
+        is NoteFilter.ByCategory -> category == filter.category
+    }
 
     /** Category chosen for the note currently being recorded. */
     private val _recordingCategory = MutableStateFlow(Category.NONE)
@@ -66,8 +80,12 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setFilter(category: Category?) {
-        _selectedFilter.value = category
+    fun setFilter(filter: NoteFilter) {
+        _selectedFilter.value = filter
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun addNote(text: String, category: Category) {
@@ -78,6 +96,10 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteNote(note: NoteEntity) {
         viewModelScope.launch { repository.deleteNote(note) }
+    }
+
+    fun toggleFavorite(note: NoteEntity) {
+        viewModelScope.launch { repository.setFavorite(note, !note.isFavorite) }
     }
 
     // --- Voice recording -----------------------------------------------------
