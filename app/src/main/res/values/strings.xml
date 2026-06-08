@@ -18,6 +18,15 @@
     <string name="favorite">Mark as favorite</string>
     <string name="unfavorite">Remove from favorites</string>
 
+    <!-- Share &amp; export -->
+    <string name="more_actions">More actions</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_export">Export all (.txt)</string>
+    <string name="export_filename">auranotes.txt</string>
+    <string name="export_success">Notes exported</string>
+    <string name="export_failed">Export failed</string>
+
     <!-- Header subtitle (note count) -->
     <plurals name="note_count">
         <item quantity="one">%d note</item>

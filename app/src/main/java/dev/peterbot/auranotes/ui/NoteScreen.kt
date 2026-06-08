@@ -1,10 +1,12 @@
 package dev.peterbot.auranotes.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,13 +20,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -123,6 +130,34 @@ fun NoteScreen(
         }
     }
 
+    val exportSuccessMessage = stringResource(R.string.export_success)
+    val exportFailedMessage = stringResource(R.string.export_failed)
+    val exportFileName = stringResource(R.string.export_filename)
+
+    // Storage Access Framework: the user picks where to save; no permissions,
+    // works offline. Cancelling returns a null uri.
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportAllNotes(uri) { success ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        if (success) exportSuccessMessage else exportFailedMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    val onShareNote: (NoteEntity) -> Unit = { note ->
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, note.text)
+        }
+        context.startActivity(Intent.createChooser(sendIntent, null))
+    }
+
     NoteScreenContent(
         notes = notes,
         selectedFilter = selectedFilter,
@@ -138,6 +173,8 @@ fun NoteScreen(
         onCancelRecording = viewModel::cancelRecording,
         onAddNote = viewModel::addNote,
         onToggleFavorite = viewModel::toggleFavorite,
+        onShareNote = onShareNote,
+        onExport = { exportLauncher.launch(exportFileName) },
         onDeleteNote = viewModel::deleteNote,
         modifier = modifier,
     )
@@ -160,6 +197,8 @@ private fun NoteScreenContent(
     onCancelRecording: () -> Unit,
     onAddNote: (String, Category) -> Unit,
     onToggleFavorite: (NoteEntity) -> Unit,
+    onShareNote: (NoteEntity) -> Unit,
+    onExport: () -> Unit,
     onDeleteNote: (NoteEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -180,6 +219,7 @@ private fun NoteScreenContent(
                     onSearchQueryChange("")
                 },
                 onAddTextNote = { showAddDialog = true },
+                onExport = onExport,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -229,6 +269,7 @@ private fun NoteScreenContent(
                         NoteCard(
                             note = note,
                             onToggleFavorite = { onToggleFavorite(note) },
+                            onShare = { onShareNote(note) },
                             onDelete = { onDeleteNote(note) },
                         )
                     }
@@ -268,6 +309,7 @@ private fun NoteTopBar(
     onStartSearch: () -> Unit,
     onCloseSearch: () -> Unit,
     onAddTextNote: () -> Unit,
+    onExport: () -> Unit,
 ) {
     val onBar = MaterialTheme.colorScheme.onPrimary
     TopAppBar(
@@ -345,6 +387,30 @@ private fun NoteTopBar(
                         contentDescription = stringResource(R.string.add_text_note),
                     )
                 }
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.more_actions),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_export)) },
+                            leadingIcon = {
+                                Icon(Icons.Filled.FileDownload, contentDescription = null)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onExport()
+                            },
+                        )
+                    }
+                }
             }
         },
     )
@@ -354,6 +420,7 @@ private fun NoteTopBar(
 private fun NoteCard(
     note: NoteEntity,
     onToggleFavorite: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -411,11 +478,39 @@ private fun NoteCard(
                             },
                         )
                     }
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.delete_note),
-                        )
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.more_actions),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_share)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Share, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onShare()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_delete)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Delete, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDelete()
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -592,6 +687,8 @@ private fun NoteScreenPreview() {
             onCancelRecording = {},
             onAddNote = { _, _ -> },
             onToggleFavorite = {},
+            onShareNote = {},
+            onExport = {},
             onDeleteNote = {},
         )
     }
