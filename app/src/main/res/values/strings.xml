@@ -8,6 +8,16 @@
     <string name="delete_note">Delete note</string>
     <string name="empty_notes_title">No notes yet</string>
     <string name="empty_notes_subtitle">Tap the microphone to record your first note</string>
+    <string name="empty_filtered_title">Nothing here</string>
+    <string name="empty_filtered_subtitle">No notes in this category yet</string>
+
+    <!-- Categories -->
+    <string name="filter_all">All</string>
+    <string name="category_personal">Personal</string>
+    <string name="category_work">Work</string>
+    <string name="category_ideas">Ideas</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_none">None</string>
 
     <!-- Add-note dialog -->
     <string name="new_note">New note</string>

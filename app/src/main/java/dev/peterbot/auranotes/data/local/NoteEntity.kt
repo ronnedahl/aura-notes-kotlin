@@ -6,8 +6,8 @@ import androidx.room.PrimaryKey
 /**
  * A single note as stored in the local Room database.
  *
- * Task 1 keeps the schema intentionally small (text + timestamp). Later tasks
- * (categories, favorites) will add columns via a Room migration.
+ * [category] was added in schema v2 (see MIGRATION_1_2); existing rows default
+ * to [Category.NONE]. Stored via [Converters].
  */
 @Entity(tableName = "notes")
 data class NoteEntity(
@@ -15,4 +15,5 @@ data class NoteEntity(
     val id: Long = 0,
     val text: String,
     val createdAt: Long,
+    val category: Category = Category.NONE,
 )

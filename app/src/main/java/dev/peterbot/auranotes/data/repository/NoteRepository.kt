@@ -1,5 +1,6 @@
 package dev.peterbot.auranotes.data.repository
 
+import dev.peterbot.auranotes.data.local.Category
 import dev.peterbot.auranotes.data.local.NoteDao
 import dev.peterbot.auranotes.data.local.NoteEntity
 import kotlinx.coroutines.flow.Flow
@@ -12,11 +13,12 @@ class NoteRepository(private val noteDao: NoteDao) {
 
     val notes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
 
-    suspend fun addNote(text: String): Long =
+    suspend fun addNote(text: String, category: Category): Long =
         noteDao.insert(
             NoteEntity(
                 text = text,
                 createdAt = System.currentTimeMillis(),
+                category = category,
             ),
         )
 
