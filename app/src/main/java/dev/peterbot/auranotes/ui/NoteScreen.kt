@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,7 +55,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,6 +69,7 @@ import dev.peterbot.auranotes.data.local.NoteEntity
 import dev.peterbot.auranotes.speech.SpeechState
 import dev.peterbot.auranotes.ui.theme.AuraNotesTheme
 import dev.peterbot.auranotes.ui.theme.BrandBlue
+import dev.peterbot.auranotes.ui.theme.CardLight
 import dev.peterbot.auranotes.viewmodel.NoteFilter
 import dev.peterbot.auranotes.viewmodel.NoteViewModel
 import kotlinx.coroutines.launch
@@ -166,6 +172,7 @@ private fun NoteScreenContent(
             NoteTopBar(
                 isSearching = isSearching,
                 searchQuery = searchQuery,
+                noteCount = notes.size,
                 onSearchQueryChange = onSearchQueryChange,
                 onStartSearch = { isSearching = true },
                 onCloseSearch = {
@@ -177,7 +184,11 @@ private fun NoteScreenContent(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = onRecordClick) {
+            FloatingActionButton(
+                onClick = onRecordClick,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Mic,
                     contentDescription = stringResource(R.string.record_note),
@@ -206,8 +217,13 @@ private fun NoteScreenContent(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 16.dp,
+                        bottom = 88.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(items = notes, key = { it.id }) { note ->
                         NoteCard(
@@ -247,12 +263,21 @@ private fun NoteScreenContent(
 private fun NoteTopBar(
     isSearching: Boolean,
     searchQuery: String,
+    noteCount: Int,
     onSearchQueryChange: (String) -> Unit,
     onStartSearch: () -> Unit,
     onCloseSearch: () -> Unit,
     onAddTextNote: () -> Unit,
 ) {
+    val onBar = MaterialTheme.colorScheme.onPrimary
     TopAppBar(
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            scrolledContainerColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = onBar,
+            navigationIconContentColor = onBar,
+            actionIconContentColor = onBar,
+        ),
         title = {
             if (isSearching) {
                 val focusRequester = remember { FocusRequester() }
@@ -270,10 +295,30 @@ private fun NoteTopBar(
                         unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = onBar,
+                        unfocusedTextColor = onBar,
+                        cursorColor = onBar,
+                        focusedPlaceholderColor = onBar.copy(alpha = 0.7f),
+                        unfocusedPlaceholderColor = onBar.copy(alpha = 0.7f),
                     ),
                 )
             } else {
-                Text(stringResource(R.string.app_name))
+                Column {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.note_count,
+                            noteCount,
+                            noteCount,
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = onBar.copy(alpha = 0.85f),
+                    )
+                }
             }
         },
         navigationIcon = {
@@ -312,7 +357,12 @@ private fun NoteCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CardLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    ) {
         Column(
             modifier = Modifier.padding(
                 start = 16.dp,

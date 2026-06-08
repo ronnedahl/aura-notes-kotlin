@@ -1,0 +1,8 @@
+<resources>
+    <!-- Swedish note count for Peter's device (Locale sv). Other strings fall
+         back to the default (English) resources. -->
+    <plurals name="note_count">
+        <item quantity="one">%d anteckning</item>
+        <item quantity="other">%d anteckningar</item>
+    </plurals>
+</resources>
