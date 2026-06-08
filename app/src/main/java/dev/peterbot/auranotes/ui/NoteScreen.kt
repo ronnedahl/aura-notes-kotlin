@@ -14,15 +14,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -30,8 +35,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +64,7 @@ import dev.peterbot.auranotes.data.local.Category
 import dev.peterbot.auranotes.data.local.NoteEntity
 import dev.peterbot.auranotes.speech.SpeechState
 import dev.peterbot.auranotes.ui.theme.AuraNotesTheme
+import dev.peterbot.auranotes.ui.theme.BrandBlue
 import dev.peterbot.auranotes.viewmodel.NoteViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -72,6 +84,8 @@ fun NoteScreen(
     val context = LocalContext.current
     val notes by viewModel.notes.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsState()
     val recordingState by viewModel.recordingState.collectAsState()
     val recordingCategory by viewModel.recordingCategory.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,15 +121,20 @@ fun NoteScreen(
     NoteScreenContent(
         notes = notes,
         selectedFilter = selectedFilter,
+        searchQuery = searchQuery,
+        showFavoritesOnly = showFavoritesOnly,
         recordingState = recordingState,
         recordingCategory = recordingCategory,
         snackbarHostState = snackbarHostState,
         onSelectFilter = viewModel::setFilter,
+        onSearchQueryChange = viewModel::setSearchQuery,
+        onSetShowFavoritesOnly = viewModel::setShowFavoritesOnly,
         onRecordClick = onRecordClick,
         onSetRecordingCategory = viewModel::setRecordingCategory,
         onStopRecording = viewModel::stopRecording,
         onCancelRecording = viewModel::cancelRecording,
         onAddNote = viewModel::addNote,
+        onToggleFavorite = viewModel::toggleFavorite,
         onDeleteNote = viewModel::deleteNote,
         modifier = modifier,
     )
@@ -126,33 +145,41 @@ fun NoteScreen(
 private fun NoteScreenContent(
     notes: List<NoteEntity>,
     selectedFilter: Category?,
+    searchQuery: String,
+    showFavoritesOnly: Boolean,
     recordingState: SpeechState,
     recordingCategory: Category,
     snackbarHostState: SnackbarHostState,
     onSelectFilter: (Category?) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSetShowFavoritesOnly: (Boolean) -> Unit,
     onRecordClick: () -> Unit,
     onSetRecordingCategory: (Category) -> Unit,
     onStopRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onAddNote: (String, Category) -> Unit,
+    onToggleFavorite: (NoteEntity) -> Unit,
     onDeleteNote: (NoteEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var isSearching by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.add_text_note),
-                        )
-                    }
+            NoteTopBar(
+                isSearching = isSearching,
+                searchQuery = searchQuery,
+                showFavoritesOnly = showFavoritesOnly,
+                onSearchQueryChange = onSearchQueryChange,
+                onStartSearch = { isSearching = true },
+                onCloseSearch = {
+                    isSearching = false
+                    onSearchQueryChange("")
                 },
+                onToggleFavoritesFilter = { onSetShowFavoritesOnly(!showFavoritesOnly) },
+                onAddTextNote = { showAddDialog = true },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -177,8 +204,10 @@ private fun NoteScreenContent(
             )
 
             if (notes.isEmpty()) {
+                val isFiltering =
+                    selectedFilter != null || showFavoritesOnly || searchQuery.isNotBlank()
                 EmptyState(
-                    isFiltered = selectedFilter != null,
+                    isFiltered = isFiltering,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -188,7 +217,11 @@ private fun NoteScreenContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(items = notes, key = { it.id }) { note ->
-                        NoteCard(note = note, onDelete = { onDeleteNote(note) })
+                        NoteCard(
+                            note = note,
+                            onToggleFavorite = { onToggleFavorite(note) },
+                            onDelete = { onDeleteNote(note) },
+                        )
                     }
                 }
             }
@@ -216,9 +249,86 @@ private fun NoteScreenContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NoteTopBar(
+    isSearching: Boolean,
+    searchQuery: String,
+    showFavoritesOnly: Boolean,
+    onSearchQueryChange: (String) -> Unit,
+    onStartSearch: () -> Unit,
+    onCloseSearch: () -> Unit,
+    onToggleFavoritesFilter: () -> Unit,
+    onAddTextNote: () -> Unit,
+) {
+    TopAppBar(
+        title = {
+            if (isSearching) {
+                val focusRequester = remember { FocusRequester() }
+                LaunchedEffect(Unit) { focusRequester.requestFocus() }
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { Text(stringResource(R.string.search_notes)) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                )
+            } else {
+                Text(stringResource(R.string.app_name))
+            }
+        },
+        navigationIcon = {
+            if (isSearching) {
+                IconButton(onClick = onCloseSearch) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.close_search),
+                    )
+                }
+            }
+        },
+        actions = {
+            if (!isSearching) {
+                IconButton(onClick = onStartSearch) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = stringResource(R.string.search),
+                    )
+                }
+                IconButton(onClick = onToggleFavoritesFilter) {
+                    Icon(
+                        imageVector = if (showFavoritesOnly) {
+                            Icons.Filled.Star
+                        } else {
+                            Icons.Filled.StarBorder
+                        },
+                        contentDescription = stringResource(R.string.show_favorites),
+                        tint = if (showFavoritesOnly) BrandBlue else LocalContentColor.current,
+                    )
+                }
+                IconButton(onClick = onAddTextNote) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = stringResource(R.string.add_text_note),
+                    )
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun NoteCard(
     note: NoteEntity,
+    onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -253,11 +363,30 @@ private fun NoteCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.delete_note),
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onToggleFavorite) {
+                        Icon(
+                            imageVector = if (note.isFavorite) {
+                                Icons.Filled.Star
+                            } else {
+                                Icons.Filled.StarBorder
+                            },
+                            contentDescription = stringResource(
+                                if (note.isFavorite) R.string.unfavorite else R.string.favorite,
+                            ),
+                            tint = if (note.isFavorite) {
+                                BrandBlue
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.delete_note),
+                        )
+                    }
                 }
             }
         }
@@ -411,6 +540,7 @@ private fun NoteScreenPreview() {
                     text = "Köp mjölk och bröd",
                     createdAt = 1_717_000_000_000,
                     category = Category.SHOPPING,
+                    isFavorite = true,
                 ),
                 NoteEntity(
                     id = 2,
@@ -420,15 +550,20 @@ private fun NoteScreenPreview() {
                 ),
             ),
             selectedFilter = null,
+            searchQuery = "",
+            showFavoritesOnly = false,
             recordingState = SpeechState.Idle,
             recordingCategory = Category.NONE,
             snackbarHostState = SnackbarHostState(),
             onSelectFilter = {},
+            onSearchQueryChange = {},
+            onSetShowFavoritesOnly = {},
             onRecordClick = {},
             onSetRecordingCategory = {},
             onStopRecording = {},
             onCancelRecording = {},
             onAddNote = { _, _ -> },
+            onToggleFavorite = {},
             onDeleteNote = {},
         )
     }
