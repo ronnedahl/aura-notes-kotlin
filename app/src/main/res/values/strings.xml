@@ -3,13 +3,23 @@
 
     <!-- Note list -->
     <string name="add_note">Add note</string>
+    <string name="add_text_note">Add text note</string>
+    <string name="record_note">Record note</string>
     <string name="delete_note">Delete note</string>
     <string name="empty_notes_title">No notes yet</string>
-    <string name="empty_notes_subtitle">Tap + to write your first note</string>
+    <string name="empty_notes_subtitle">Tap the microphone to record your first note</string>
 
     <!-- Add-note dialog -->
     <string name="new_note">New note</string>
     <string name="note_hint">Write something…</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
+
+    <!-- Voice recording -->
+    <string name="recording_title">Listening…</string>
+    <string name="recording_hint">Speak now</string>
+    <string name="stop">Stop</string>
+    <string name="recording_error">Couldn\'t record. Please try again.</string>
+    <string name="mic_permission_denied">Microphone permission is needed to record voice notes</string>
+    <string name="speech_not_available">Speech recognition isn\'t available on this device</string>
 </resources>
