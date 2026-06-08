@@ -18,6 +18,12 @@
     <string name="favorite">Mark as favorite</string>
     <string name="unfavorite">Remove from favorites</string>
 
+    <!-- Header subtitle (note count) -->
+    <plurals name="note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+
     <!-- Categories -->
     <string name="filter_all">All</string>
     <string name="filter_favorites">Favorites</string>
