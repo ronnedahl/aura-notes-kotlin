@@ -1,6 +1,7 @@
 package dev.peterbot.auranotes.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.peterbot.auranotes.data.local.Category
@@ -13,9 +14,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Exposes the (optionally filtered) notes list as [StateFlow], owns all write
@@ -100,6 +103,26 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleFavorite(note: NoteEntity) {
         viewModelScope.launch { repository.setFavorite(note, !note.isFavorite) }
+    }
+
+    /**
+     * Write every note as plain text to [uri] (chosen via the system file picker).
+     * The write runs off the main thread; [onResult] is invoked on the main thread
+     * with whether it succeeded.
+     */
+    fun exportAllNotes(uri: Uri, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                runCatching {
+                    val text = formatNotesForExport(repository.allNotes())
+                    getApplication<Application>().contentResolver
+                        .openOutputStream(uri)
+                        ?.use { output -> output.write(text.toByteArray()) }
+                        ?: error("Could not open output stream for $uri")
+                }.isSuccess
+            }
+            onResult(success)
+        }
     }
 
     // --- Voice recording -----------------------------------------------------

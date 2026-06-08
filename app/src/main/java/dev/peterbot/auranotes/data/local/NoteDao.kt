@@ -19,6 +19,10 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY createdAt DESC")
     fun getAllNotes(): Flow<List<NoteEntity>>
 
+    /** One-shot snapshot of every note, for .txt export. */
+    @Query("SELECT * FROM notes ORDER BY createdAt DESC")
+    suspend fun getAllNotesList(): List<NoteEntity>
+
     @Insert
     suspend fun insert(note: NoteEntity): Long
 

@@ -13,6 +13,9 @@ class NoteRepository(private val noteDao: NoteDao) {
 
     val notes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
 
+    /** Snapshot of all notes for export (newest first). */
+    suspend fun allNotes(): List<NoteEntity> = noteDao.getAllNotesList()
+
     suspend fun addNote(text: String, category: Category): Long =
         noteDao.insert(
             NoteEntity(
