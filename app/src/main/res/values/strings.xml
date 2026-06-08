@@ -27,6 +27,10 @@
     <string name="export_success">Notes exported</string>
     <string name="export_failed">Export failed</string>
 
+    <!-- Home-screen widget -->
+    <string name="widget_record">Record</string>
+    <string name="widget_description">One-tap voice note</string>
+
     <!-- Header subtitle (note count) -->
     <plurals name="note_count">
         <item quantity="one">%d note</item>

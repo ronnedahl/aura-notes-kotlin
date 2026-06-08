@@ -93,6 +93,8 @@ import java.util.Locale
 fun NoteScreen(
     modifier: Modifier = Modifier,
     viewModel: NoteViewModel = viewModel(),
+    autoStartRecording: Boolean = false,
+    onAutoStartHandled: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val notes by viewModel.notes.collectAsState()
@@ -156,6 +158,14 @@ fun NoteScreen(
             putExtra(Intent.EXTRA_TEXT, note.text)
         }
         context.startActivity(Intent.createChooser(sendIntent, null))
+    }
+
+    // Launched from the home-screen widget: start recording once.
+    LaunchedEffect(autoStartRecording) {
+        if (autoStartRecording) {
+            onRecordClick()
+            onAutoStartHandled()
+        }
     }
 
     NoteScreenContent(

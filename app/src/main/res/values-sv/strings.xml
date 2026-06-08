@@ -5,4 +5,9 @@
         <item quantity="one">%d anteckning</item>
         <item quantity="other">%d anteckningar</item>
     </plurals>
+
+    <!-- Home-screen widget -->
+    <string name="widget_record">Spela in</string>
+    <string name="widget_description">Röstanteckning med ett tryck</string>
 </resources>
+
