@@ -15,12 +15,12 @@
     <string name="search">Search</string>
     <string name="search_notes">Search notes</string>
     <string name="close_search">Close search</string>
-    <string name="show_favorites">Show favorites</string>
     <string name="favorite">Mark as favorite</string>
     <string name="unfavorite">Remove from favorites</string>
 
     <!-- Categories -->
     <string name="filter_all">All</string>
+    <string name="filter_favorites">Favorites</string>
     <string name="category_personal">Personal</string>
     <string name="category_work">Work</string>
     <string name="category_ideas">Ideas</string>

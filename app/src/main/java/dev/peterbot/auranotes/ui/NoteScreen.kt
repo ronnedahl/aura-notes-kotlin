@@ -27,7 +27,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -65,6 +64,7 @@ import dev.peterbot.auranotes.data.local.NoteEntity
 import dev.peterbot.auranotes.speech.SpeechState
 import dev.peterbot.auranotes.ui.theme.AuraNotesTheme
 import dev.peterbot.auranotes.ui.theme.BrandBlue
+import dev.peterbot.auranotes.viewmodel.NoteFilter
 import dev.peterbot.auranotes.viewmodel.NoteViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -85,7 +85,6 @@ fun NoteScreen(
     val notes by viewModel.notes.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsState()
     val recordingState by viewModel.recordingState.collectAsState()
     val recordingCategory by viewModel.recordingCategory.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -122,13 +121,11 @@ fun NoteScreen(
         notes = notes,
         selectedFilter = selectedFilter,
         searchQuery = searchQuery,
-        showFavoritesOnly = showFavoritesOnly,
         recordingState = recordingState,
         recordingCategory = recordingCategory,
         snackbarHostState = snackbarHostState,
         onSelectFilter = viewModel::setFilter,
         onSearchQueryChange = viewModel::setSearchQuery,
-        onSetShowFavoritesOnly = viewModel::setShowFavoritesOnly,
         onRecordClick = onRecordClick,
         onSetRecordingCategory = viewModel::setRecordingCategory,
         onStopRecording = viewModel::stopRecording,
@@ -144,15 +141,13 @@ fun NoteScreen(
 @Composable
 private fun NoteScreenContent(
     notes: List<NoteEntity>,
-    selectedFilter: Category?,
+    selectedFilter: NoteFilter,
     searchQuery: String,
-    showFavoritesOnly: Boolean,
     recordingState: SpeechState,
     recordingCategory: Category,
     snackbarHostState: SnackbarHostState,
-    onSelectFilter: (Category?) -> Unit,
+    onSelectFilter: (NoteFilter) -> Unit,
     onSearchQueryChange: (String) -> Unit,
-    onSetShowFavoritesOnly: (Boolean) -> Unit,
     onRecordClick: () -> Unit,
     onSetRecordingCategory: (Category) -> Unit,
     onStopRecording: () -> Unit,
@@ -171,14 +166,12 @@ private fun NoteScreenContent(
             NoteTopBar(
                 isSearching = isSearching,
                 searchQuery = searchQuery,
-                showFavoritesOnly = showFavoritesOnly,
                 onSearchQueryChange = onSearchQueryChange,
                 onStartSearch = { isSearching = true },
                 onCloseSearch = {
                     isSearching = false
                     onSearchQueryChange("")
                 },
-                onToggleFavoritesFilter = { onSetShowFavoritesOnly(!showFavoritesOnly) },
                 onAddTextNote = { showAddDialog = true },
             )
         },
@@ -197,7 +190,7 @@ private fun NoteScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            CategoryFilterRow(
+            NoteFilterRow(
                 selected = selectedFilter,
                 onSelect = onSelectFilter,
                 modifier = Modifier.padding(vertical = 8.dp),
@@ -205,7 +198,7 @@ private fun NoteScreenContent(
 
             if (notes.isEmpty()) {
                 val isFiltering =
-                    selectedFilter != null || showFavoritesOnly || searchQuery.isNotBlank()
+                    selectedFilter !is NoteFilter.All || searchQuery.isNotBlank()
                 EmptyState(
                     isFiltered = isFiltering,
                     modifier = Modifier.fillMaxSize(),
@@ -254,11 +247,9 @@ private fun NoteScreenContent(
 private fun NoteTopBar(
     isSearching: Boolean,
     searchQuery: String,
-    showFavoritesOnly: Boolean,
     onSearchQueryChange: (String) -> Unit,
     onStartSearch: () -> Unit,
     onCloseSearch: () -> Unit,
-    onToggleFavoritesFilter: () -> Unit,
     onAddTextNote: () -> Unit,
 ) {
     TopAppBar(
@@ -301,17 +292,6 @@ private fun NoteTopBar(
                     Icon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = stringResource(R.string.search),
-                    )
-                }
-                IconButton(onClick = onToggleFavoritesFilter) {
-                    Icon(
-                        imageVector = if (showFavoritesOnly) {
-                            Icons.Filled.Star
-                        } else {
-                            Icons.Filled.StarBorder
-                        },
-                        contentDescription = stringResource(R.string.show_favorites),
-                        tint = if (showFavoritesOnly) BrandBlue else LocalContentColor.current,
                     )
                 }
                 IconButton(onClick = onAddTextNote) {
@@ -549,15 +529,13 @@ private fun NoteScreenPreview() {
                     category = Category.IDEAS,
                 ),
             ),
-            selectedFilter = null,
+            selectedFilter = NoteFilter.All,
             searchQuery = "",
-            showFavoritesOnly = false,
             recordingState = SpeechState.Idle,
             recordingCategory = Category.NONE,
             snackbarHostState = SnackbarHostState(),
             onSelectFilter = {},
             onSearchQueryChange = {},
-            onSetShowFavoritesOnly = {},
             onRecordClick = {},
             onSetRecordingCategory = {},
             onStopRecording = {},
